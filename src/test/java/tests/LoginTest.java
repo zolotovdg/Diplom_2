@@ -2,7 +2,7 @@ package tests;
 
 import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
-import jdk.jfr.Description;
+import io.qameta.allure.Description;
 import model.UserCredentialsModel;
 import model.UserRequestModel;
 import org.apache.commons.lang3.RandomStringUtils;
