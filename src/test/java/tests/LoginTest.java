@@ -1,8 +1,8 @@
 package tests;
 
-import io.restassured.http.ContentType;
-import io.restassured.path.json.JsonPath;
+import client.UserClient;
 import io.qameta.allure.Description;
+import io.restassured.response.ValidatableResponse;
 import model.UserCredentialsModel;
 import model.UserRequestModel;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -10,12 +10,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 public class LoginTest extends BaseUtils {
-
+    private UserClient userClient;
     private UserRequestModel user;
     private UserCredentialsModel credential;
     private String accessToken = "";
@@ -23,68 +22,42 @@ public class LoginTest extends BaseUtils {
 
     @BeforeEach
     public void setupEach() {
+        userClient = new UserClient();
         String random = RandomStringUtils.randomAlphabetic(8);
         user = new UserRequestModel(random + "@ya.ru", "123", random);
         credential = new UserCredentialsModel(user.getEmail(), user.getPassword());
-        given()
-                .contentType(ContentType.JSON)
-                .body(user)
-                .when()
-                .post("/auth/register");
+        userClient.createUser(user);
     }
 
     @AfterEach
     public void teardown() {
         credential = new UserCredentialsModel(user.getEmail(), user.getPassword());
-        String response = given()
-                .contentType(ContentType.JSON)
-                .body(credential)
-                .when()
-                .post("/auth/login")
-                .then()
-                .extract().asString();
-        JsonPath j = new JsonPath(response);
-        if (j.getString("accessToken") != null) {
-            accessToken = j.getString("accessToken").substring(7);
-            given()
-                    .contentType(ContentType.JSON)
-                    .auth().oauth2(accessToken)
-                    .when()
-                    .delete("/auth/user");
+        ValidatableResponse response = userClient.userLogin(credential);
+        if (response.extract().path("accessToken") != null) {
+            accessToken = response.extract().path("accessToken").toString().substring(7);
+            userClient.deleteUser(accessToken);
         }
     }
 
     @Description("Успешный вход в систему")
     @Test
     public void successLoginTest() {
-        String response = given()
-                .contentType(ContentType.JSON)
-                .body(credential)
-                .when()
-                .post("/auth/login")
-                .then()
-                .statusCode(200)
-                .body("success", equalTo(true))
-                .body("user.email", equalTo(user.getEmail().toLowerCase()))
-                .body("user.name", equalTo(user.getName()))
-                .extract().asString();
-        JsonPath j = new JsonPath(response);
-        assertFalse(j.getString("accessToken").isEmpty() || j.getString("accessToken").isBlank());
-        assertFalse(j.getString("refreshToken").isEmpty() || j.getString("refreshToken").isBlank());
+        ValidatableResponse response = userClient.userLogin(credential);
+        assertEquals(200, response.extract().statusCode());
+        assertEquals(true, response.extract().path("success"));
+        assertEquals(user.getEmail().toLowerCase(), response.extract().path("user.email"));
+        assertEquals(user.getName(), response.extract().path("user.name"));
+        assertFalse(response.extract().path("accessToken").toString().isEmpty());
+        assertFalse(response.extract().path("refreshToken").toString().isEmpty());
     }
 
     @Description("Попытка входа с неверным логином и паролем")
     @Test
     public void loginWithIncorrectCredentialsTest() {
         credential = new UserCredentialsModel(user.getEmail(), "1");
-        given()
-                .contentType(ContentType.JSON)
-                .body(credential)
-                .when()
-                .post("/auth/login")
-                .then()
-                .statusCode(401)
-                .body("success", equalTo(false))
-                .body("message", equalTo("email or password are incorrect"));
+        ValidatableResponse response = userClient.userLogin(credential);
+        assertEquals(401, response.extract().statusCode());
+        assertEquals(false, response.extract().path("success"));
+        assertEquals("email or password are incorrect", response.extract().path("message"));
     }
 }

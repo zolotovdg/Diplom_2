@@ -1,8 +1,9 @@
 package tests;
 
-import io.restassured.http.ContentType;
-import io.restassured.path.json.JsonPath;
+import client.OrderClient;
+import client.UserClient;
 import io.qameta.allure.Description;
+import io.restassured.response.ValidatableResponse;
 import model.OrderRequestModel;
 import model.UserCredentialsModel;
 import model.UserRequestModel;
@@ -12,15 +13,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
-import static io.restassured.RestAssured.given;
-import static org.apache.commons.lang3.RandomUtils.nextInt;
-import static org.hamcrest.Matchers.equalTo;
+import static client.IngredientsClient.createBurger;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 public class OrderTest extends BaseUtils {
+    private UserClient userClient;
+    private OrderClient orderClient;
     private UserRequestModel user;
     private UserCredentialsModel credential;
     private String accessToken = "";
@@ -28,129 +29,67 @@ public class OrderTest extends BaseUtils {
 
     @BeforeEach
     public void setupEach() {
+        userClient = new UserClient();
+        orderClient = new OrderClient();
         String random = RandomStringUtils.randomAlphabetic(8);
         user = new UserRequestModel(random + "@ya.ru", "123", random);
         credential = new UserCredentialsModel(user.getEmail(), user.getPassword());
-        given()
-                .contentType(ContentType.JSON)
-                .body(user)
-                .when()
-                .post("/auth/register");
-        ArrayList<Object> list = new ArrayList<>();
-        String response = given()
-                .contentType(ContentType.JSON)
-                .when()
-                .get("/ingredients")
-                .then()
-                .extract().asString();
-        JsonPath j = new JsonPath(response);
-        int bunIndex = nextInt(0, 1);
-        int mainIndex = nextInt(0, 8);
-        int sauceIndex = nextInt(0, 3);
-        List<Object> buns = j.getList("data.findAll{it.type == 'bun'}._id");
-        List<Object> mains = j.getList("data.findAll{it.type == 'main'}._id");
-        List<Object> sauces = j.getList("data.findAll{it.type == 'sauce'}._id");
-
-        list.add(buns.get(bunIndex));
-        list.add(mains.get(mainIndex));
-        list.add(sauces.get(sauceIndex));
-
-        ingredients = new OrderRequestModel(list);
+        userClient.createUser(user);
+        ingredients = new OrderRequestModel(createBurger());
     }
 
     @AfterEach
     public void teardown() {
         credential = new UserCredentialsModel(user.getEmail(), user.getPassword());
-        String response = given()
-                .contentType(ContentType.JSON)
-                .body(credential)
-                .when()
-                .post("/auth/login")
-                .then()
-                .extract().asString();
-        JsonPath j = new JsonPath(response);
-        if (j.getString("accessToken") != null) {
-            accessToken = j.getString("accessToken").substring(7);
-            given()
-                    .contentType(ContentType.JSON)
-                    .auth().oauth2(accessToken)
-                    .when()
-                    .delete("/auth/user");
+        ValidatableResponse response = userClient.userLogin(credential);
+        if (response.extract().path("accessToken") != null) {
+            accessToken = response.extract().path("accessToken").toString().substring(7);
+            userClient.deleteUser(accessToken);
         }
     }
 
     @Description("Успешное создание заказа")
     @Test
     public void createOrderSuccessTest() {
-        String response = given()
-                .contentType(ContentType.JSON)
-                .body(credential)
-                .when()
-                .post("/auth/login")
-                .then()
-                .extract().asString();
-        JsonPath j = new JsonPath(response);
-        accessToken = j.getString("accessToken").substring(7);
-
-        String responseOrder = given()
-                .contentType(ContentType.JSON)
-                .auth().oauth2(accessToken)
-                .body(ingredients)
-                .when()
-                .post("/orders")
-                .then()
-                .statusCode(200)
-                .body("success", equalTo(true))
-                .extract().asString();
-        j = new JsonPath(responseOrder);
-        assertFalse(j.getString("order.status").isEmpty()
-                || j.getString("order.status").isBlank());
-        assertFalse(j.getString("order.name").isEmpty()
-                || j.getString("order.name").isBlank());
-        assertFalse(j.getString("order.createdAt").isEmpty()
-                || j.getString("order.createdAt").isBlank());
-        assertFalse(j.getString("order.updatedAt").isEmpty()
-                || j.getString("order.updatedAt").isBlank());
-        assertFalse(j.getString("order.number").isEmpty()
-                || j.getString("order.number").isBlank());
-        assertFalse(j.getString("order.price").isEmpty()
-                || j.getString("order.price").isBlank());
+        ValidatableResponse loginResponse = userClient.userLogin(credential);
+        accessToken = loginResponse.extract().path("accessToken").toString().substring(7);
+        ValidatableResponse response = orderClient.createOrder(ingredients, accessToken);
+        assertEquals(200, response.extract().statusCode());
+        assertEquals(true, response.extract().path("success"));
+        assertFalse(response.extract().path("order.status").toString().isEmpty()
+                || response.extract().path("order.status").toString().isBlank());
+        assertFalse(response.extract().path("order.name").toString().isEmpty()
+                || response.extract().path("order.name").toString().isBlank());
+        assertFalse(response.extract().path("order.createdAt").toString().isEmpty()
+                || response.extract().path("order.createdAt").toString().isBlank());
+        assertFalse(response.extract().path("order.updatedAt").toString().isEmpty()
+                || response.extract().path("order.updatedAt").toString().isBlank());
+        assertFalse(response.extract().path("order.number").toString().isEmpty()
+                || response.extract().path("order.number").toString().isBlank());
+        assertFalse(response.extract().path("order.price").toString().isEmpty()
+                || response.extract().path("order.price").toString().isBlank());
     }
 
     @Description("Создание заказа без авторизации")
     @Test
     public void createOrderWithUnauthorizedUser() {
-        String responseOrder = given()
-                .contentType(ContentType.JSON)
-                .auth().oauth2(accessToken)
-                .body(ingredients)
-                .when()
-                .post("/orders")
-                .then()
-                .statusCode(200)
-                .body("success", equalTo(true))
-                .extract().asString();
-        JsonPath j = new JsonPath(responseOrder);
-        assertFalse(j.getString("name").isEmpty()
-                || j.getString("name").isBlank());
-        assertFalse(j.getString("order.number").isEmpty()
-                || j.getString("order.number").isBlank());
+        ValidatableResponse response = orderClient.createOrder(ingredients, "");
+        assertEquals(200, response.extract().statusCode());
+        assertEquals(true, response.extract().path("success"));
+        assertFalse(response.extract().path("name").toString().isEmpty()
+                || response.extract().path("name").toString().isBlank());
+        assertFalse(response.extract().path("order.number").toString().isEmpty()
+                || response.extract().path("order.number").toString().isBlank());
     }
 
     @Description("Создание заказа без ингредиентов")
     @Test
     public void createOrderWithoutIngredientsTest() {
         ingredients = new OrderRequestModel(new ArrayList<>());
-        given()
-                .contentType(ContentType.JSON)
-                .auth().oauth2(accessToken)
-                .body(ingredients)
-                .when()
-                .post("/orders")
-                .then()
-                .statusCode(400)
-                .body("success", equalTo(false))
-                .body("message", equalTo("Ingredient ids must be provided"));
+        ValidatableResponse response = orderClient.createOrder(ingredients, accessToken);
+        assertEquals(400, response.extract().statusCode());
+        assertEquals(false, response.extract().path("success"));
+        assertEquals("Ingredient ids must be provided", response.extract().path("message"));
     }
 
     @Description("Создание заказа с неверным хешем ингридиентов")
@@ -159,61 +98,28 @@ public class OrderTest extends BaseUtils {
         ArrayList<Object> arr = new ArrayList<>();
         arr.add(UUID.randomUUID().toString());
         ingredients = new OrderRequestModel(arr);
-        given()
-                .contentType(ContentType.JSON)
-                .auth().oauth2(accessToken)
-                .body(ingredients)
-                .when()
-                .post("/orders")
-                .then()
-                .statusCode(500);
+        ValidatableResponse response = orderClient.createOrder(ingredients, accessToken);
+        assertEquals(500, response.extract().statusCode());
     }
 
     @Description("Получение заказов под авторизованным пользователем")
     @Test
     public void getOrdersListOnAuthorizedUserTest() {
-        String response = given()
-                .contentType(ContentType.JSON)
-                .body(credential)
-                .when()
-                .post("/auth/login")
-                .then()
-                .extract().asString();
-        JsonPath j = new JsonPath(response);
-        accessToken = j.getString("accessToken").substring(7);
-
-        String createOrderResponse = given()
-                .contentType(ContentType.JSON)
-                .auth().oauth2(accessToken)
-                .body(ingredients)
-                .when()
-                .post("/orders")
-                .then()
-                .extract().asString();
-        j = new JsonPath(createOrderResponse);
-        String orderNumber = j.getString("orders.number");
-
-        given()
-                .contentType(ContentType.JSON)
-                .auth().oauth2(accessToken)
-                .when()
-                .get("/orders")
-                .then()
-                .statusCode(200)
-                .body("order.number", equalTo(orderNumber));
+        ValidatableResponse loginResponse = userClient.userLogin(credential);
+        accessToken = loginResponse.extract().path("accessToken").toString().substring(7);
+        ValidatableResponse createOrderResponse = orderClient.createOrder(ingredients, accessToken);
+        String orderNumber = createOrderResponse.extract().path("order.number").toString();
+        ValidatableResponse response = orderClient.getUserOrders(accessToken);
+        assertEquals(200, response.extract().statusCode());
+        assertEquals(orderNumber, response.extract().path("orders.number[0]").toString());
     }
 
     @Description("Получение заказов под неавторизованным пользователем")
     @Test
     public void getOrdersListOnUnathorizedUser() {
-        given()
-                .contentType(ContentType.JSON)
-                .auth().oauth2(accessToken)
-                .when()
-                .get("/orders")
-                .then()
-                .statusCode(401)
-                .body("success", equalTo(false))
-                .body("message", equalTo("You should be authorised"));
+        ValidatableResponse response = orderClient.getUserOrders("");
+        assertEquals(401, response.extract().statusCode());
+        assertEquals(false, response.extract().path("success"));
+        assertEquals("You should be authorised", response.extract().path("message"));
     }
 }
