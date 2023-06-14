@@ -10,8 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class LoginTest extends BaseUtils {
     private UserClient userClient;
@@ -44,11 +43,14 @@ public class LoginTest extends BaseUtils {
     public void successLoginTest() {
         ValidatableResponse response = userClient.userLogin(credential);
         assertEquals(200, response.extract().statusCode());
-        assertEquals(true, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertTrue(success);
         assertEquals(user.getEmail().toLowerCase(), response.extract().path("user.email"));
         assertEquals(user.getName(), response.extract().path("user.name"));
-        assertFalse(response.extract().path("accessToken").toString().isEmpty());
-        assertFalse(response.extract().path("refreshToken").toString().isEmpty());
+        String accToken = response.extract().path("accessToken");
+        String refToken = response.extract().path("refreshToken");
+        assertFalse(accToken.isEmpty());
+        assertFalse(refToken.isEmpty());
     }
 
     @Description("Попытка входа с неверным логином и паролем")
@@ -57,7 +59,8 @@ public class LoginTest extends BaseUtils {
         credential = new UserCredentialsModel(user.getEmail(), "1");
         ValidatableResponse response = userClient.userLogin(credential);
         assertEquals(401, response.extract().statusCode());
-        assertEquals(false, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertFalse(success);
         assertEquals("email or password are incorrect", response.extract().path("message"));
     }
 }

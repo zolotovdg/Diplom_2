@@ -16,8 +16,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 import static client.IngredientsClient.createBurger;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class OrderTest extends BaseUtils {
     private UserClient userClient;
@@ -55,19 +54,20 @@ public class OrderTest extends BaseUtils {
         accessToken = loginResponse.extract().path("accessToken").toString().substring(7);
         ValidatableResponse response = orderClient.createOrder(ingredients, accessToken);
         assertEquals(200, response.extract().statusCode());
-        assertEquals(true, response.extract().path("success"));
-        assertFalse(response.extract().path("order.status").toString().isEmpty()
-                || response.extract().path("order.status").toString().isBlank());
-        assertFalse(response.extract().path("order.name").toString().isEmpty()
-                || response.extract().path("order.name").toString().isBlank());
-        assertFalse(response.extract().path("order.createdAt").toString().isEmpty()
-                || response.extract().path("order.createdAt").toString().isBlank());
-        assertFalse(response.extract().path("order.updatedAt").toString().isEmpty()
-                || response.extract().path("order.updatedAt").toString().isBlank());
-        assertFalse(response.extract().path("order.number").toString().isEmpty()
-                || response.extract().path("order.number").toString().isBlank());
-        assertFalse(response.extract().path("order.price").toString().isEmpty()
-                || response.extract().path("order.price").toString().isBlank());
+        boolean success = response.extract().path("success");
+        assertTrue(success);
+        String orderStatus = response.extract().path("order.status");
+        String orderName = response.extract().path("order.name");
+        String orderCreatedAt = response.extract().path("order.createdAt");
+        String orderUpdatedAt = response.extract().path("order.updatedAt");
+        String orderNumber = response.extract().path("order.number").toString();
+        String orderPrice = response.extract().path("order.price").toString();
+        assertFalse(orderStatus.isEmpty() || orderStatus.isBlank());
+        assertFalse(orderName.isEmpty() || orderName.isBlank());
+        assertFalse(orderCreatedAt.isEmpty() || orderCreatedAt.isBlank());
+        assertFalse(orderUpdatedAt.isEmpty() || orderUpdatedAt.isBlank());
+        assertFalse(orderNumber.isEmpty() || orderNumber.isBlank());
+        assertFalse(orderPrice.isEmpty() || orderPrice.isBlank());
     }
 
     @Description("Создание заказа без авторизации")
@@ -75,11 +75,12 @@ public class OrderTest extends BaseUtils {
     public void createOrderWithUnauthorizedUser() {
         ValidatableResponse response = orderClient.createOrder(ingredients, "");
         assertEquals(200, response.extract().statusCode());
-        assertEquals(true, response.extract().path("success"));
-        assertFalse(response.extract().path("name").toString().isEmpty()
-                || response.extract().path("name").toString().isBlank());
-        assertFalse(response.extract().path("order.number").toString().isEmpty()
-                || response.extract().path("order.number").toString().isBlank());
+        boolean success = response.extract().path("success");
+        assertTrue(success);
+        String name = response.extract().path("name");
+        String orderNumber = response.extract().path("order.number").toString();
+        assertFalse(name.isEmpty() || name.isBlank());
+        assertFalse(orderNumber.isEmpty() || orderNumber.isBlank());
     }
 
     @Description("Создание заказа без ингредиентов")
@@ -88,7 +89,8 @@ public class OrderTest extends BaseUtils {
         ingredients = new OrderRequestModel(new ArrayList<>());
         ValidatableResponse response = orderClient.createOrder(ingredients, accessToken);
         assertEquals(400, response.extract().statusCode());
-        assertEquals(false, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertFalse(success);
         assertEquals("Ingredient ids must be provided", response.extract().path("message"));
     }
 
@@ -119,7 +121,8 @@ public class OrderTest extends BaseUtils {
     public void getOrdersListOnUnathorizedUser() {
         ValidatableResponse response = orderClient.getUserOrders("");
         assertEquals(401, response.extract().statusCode());
-        assertEquals(false, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertFalse(success);
         assertEquals("You should be authorised", response.extract().path("message"));
     }
 }

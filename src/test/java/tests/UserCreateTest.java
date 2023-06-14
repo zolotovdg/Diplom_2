@@ -10,7 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class UserCreateTest extends BaseUtils {
     private UserClient userClient;
@@ -40,7 +40,8 @@ public class UserCreateTest extends BaseUtils {
     public void createUserSuccessTest() {
         ValidatableResponse response = userClient.createUser(user);
         assertEquals(200, response.extract().statusCode());
-        assertEquals(true, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertTrue(success);
         assertEquals(user.getEmail().toLowerCase(), response.extract().path("user.email"));
         assertEquals(user.getName(), response.extract().path("user.name"));
     }
@@ -51,7 +52,8 @@ public class UserCreateTest extends BaseUtils {
         userClient.createUser(user);
         ValidatableResponse response = userClient.createUser(user);
         assertEquals(403, response.extract().statusCode());
-        assertEquals(false, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertFalse(success);
         assertEquals("User already exists", response.extract().path("message"));
     }
 
@@ -61,7 +63,8 @@ public class UserCreateTest extends BaseUtils {
         user = new UserRequestModel("", "123", "name");
         ValidatableResponse response = userClient.createUser(user);
         assertEquals(403, response.extract().statusCode());
-        assertEquals(false, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertFalse(success);
         assertEquals("Email, password and name are required fields", response.extract().path("message"));
     }
 }

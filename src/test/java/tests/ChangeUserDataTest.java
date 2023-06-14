@@ -10,7 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ChangeUserDataTest extends BaseUtils {
     private UserClient userClient;
@@ -47,7 +47,8 @@ public class ChangeUserDataTest extends BaseUtils {
         credential = new UserCredentialsModel(random + "ya.ru", user.getPassword());
         ValidatableResponse response = userClient.changeUser(credential, accessToken);
         assertEquals(200, response.extract().statusCode());
-        assertEquals(true, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertTrue(success);
         assertEquals(credential.getEmail().toLowerCase(), response.extract().path("user.email"));
         assertEquals(user.getName(), response.extract().path("user.name"));
     }
@@ -57,7 +58,8 @@ public class ChangeUserDataTest extends BaseUtils {
     public void failureChangeUserDataTest() {
         ValidatableResponse response = userClient.changeUser(credential, "");
         assertEquals(401, response.extract().statusCode());
-        assertEquals(false, response.extract().path("success"));
+        boolean success = response.extract().path("success");
+        assertFalse(success);
         assertEquals("You should be authorised", response.extract().path("message"));
     }
 }
