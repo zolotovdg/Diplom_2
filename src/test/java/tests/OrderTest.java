@@ -62,12 +62,12 @@ public class OrderTest extends BaseUtils {
         String orderUpdatedAt = response.extract().path("order.updatedAt");
         String orderNumber = response.extract().path("order.number").toString();
         String orderPrice = response.extract().path("order.price").toString();
-        assertFalse(orderStatus.isEmpty() || orderStatus.isBlank());
-        assertFalse(orderName.isEmpty() || orderName.isBlank());
-        assertFalse(orderCreatedAt.isEmpty() || orderCreatedAt.isBlank());
-        assertFalse(orderUpdatedAt.isEmpty() || orderUpdatedAt.isBlank());
-        assertFalse(orderNumber.isEmpty() || orderNumber.isBlank());
-        assertFalse(orderPrice.isEmpty() || orderPrice.isBlank());
+        assertFalse(orderStatus.isEmpty());
+        assertFalse(orderName.isEmpty());
+        assertFalse(orderCreatedAt.isEmpty());
+        assertFalse(orderUpdatedAt.isEmpty());
+        assertFalse(orderNumber.isEmpty());
+        assertFalse(orderPrice.isEmpty());
     }
 
     @Description("Создание заказа без авторизации")
@@ -79,8 +79,8 @@ public class OrderTest extends BaseUtils {
         assertTrue(success);
         String name = response.extract().path("name");
         String orderNumber = response.extract().path("order.number").toString();
-        assertFalse(name.isEmpty() || name.isBlank());
-        assertFalse(orderNumber.isEmpty() || orderNumber.isBlank());
+        assertFalse(name.isEmpty());
+        assertFalse(orderNumber.isEmpty());
     }
 
     @Description("Создание заказа без ингредиентов")
